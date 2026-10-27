@@ -1,0 +1,23 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><meta name="robots" content="noindex,nofollow"><title>Gift Company · Управление</title>
+<style>*{box-sizing:border-box}body{margin:0;background:#f5f5f7;color:#18181b;font:16px/1.5 system-ui,sans-serif;min-height:100svh;display:grid;place-items:center;padding:24px}main{width:min(100%,460px);padding:36px;border:1px solid #e5e5e8;background:white;border-radius:24px;box-shadow:0 16px 64px #11111106}.brand{font-size:12px;letter-spacing:.15em;font-weight:750}.badge{display:inline-flex;gap:8px;align-items:center;font-size:13px;color:#666;margin-top:32px}.dot{width:7px;height:7px;background:#9ca3af;border-radius:50%}.online .dot{background:#299168}h1{font-size:36px;line-height:1.12;letter-spacing:-.035em;margin:14px 0}p{color:#65656d;margin:0 0 28px}button{width:100%;border:0;border-radius:12px;padding:15px 18px;font:600 16px system-ui;background:#171719;color:white;cursor:pointer}button:disabled{opacity:.6;cursor:wait}button:focus-visible{outline:3px solid #388c94;outline-offset:4px}#message{font-size:14px;margin-top:18px;min-height:21px}footer{border-top:1px solid #eee;padding-top:20px;margin-top:28px;font-size:12px;color:#777}noscript p{margin-top:20px;color:#a11b1b}</style></head>
+<body><main><div class="brand">GIFT COMPANY</div><div class="badge" id="badge"><span class="dot"></span><span id="status">Кабинет сотрудников</span></div><h1>Управление<br>сайтом и каталогами</h1><p>Одна точка входа для работы с каталогами, товарами и заявками.</p><button id="open" type="button">Открыть админку <span aria-hidden="true">↗</span></button><div id="message" role="status" aria-live="polite"></div><noscript><p>Для кнопки включите JavaScript в браузере.</p></noscript><footer>Сохраните эту страницу в закладки.<br>Вход в CMS защищён логином и паролем.</footer></main>
+<script>
+const button=document.getElementById('open'),message=document.getElementById('message'),status=document.getElementById('status'),badge=document.getElementById('badge');
+const manifest='https://raw.githubusercontent.com/Allgamon/gift-admin-access/status/connection.json';
+async function connection(){
+ const r=await fetch(manifest+'?_='+Date.now(),{cache:'no-store',signal:AbortSignal.timeout(8000)});if(!r.ok)throw Error('Не удалось получить состояние кабинета. Попробуйте ещё раз.');const s=await r.json();
+ if(s.version!==1||s.status!=='online'||!/^https:\/\/[a-z0-9-]+\.(lhr\.life|localhost\.run)$/.test(s.origin)||!Number.isFinite(Date.parse(s.updatedAt))||Math.abs(Date.now()-Date.parse(s.updatedAt))>300000)throw Error('Компьютер с CMS сейчас недоступен или восстанавливает соединение. Попробуйте немного позже.');
+ return s;
+}
+button.addEventListener('click',async()=>{
+ button.disabled=true;message.textContent='Проверяем подключение…';
+ try{
+  let target;for(let attempt=0;attempt<3;attempt++){
+   const s=await connection();try{const r=await fetch(s.origin+'/__cms_connection',{credentials:'omit',cache:'no-store',signal:AbortSignal.timeout(5000)});if(r.ok&&(await r.json()).ready===true){target=s.origin;break;}}catch{}
+   if(attempt<2){message.textContent='Восстанавливаем подключение…';await new Promise(r=>setTimeout(r,2000));}
+  }
+  if(!target)throw Error('Соединение с CMS пока недоступно из этой сети. Нажмите кнопку ещё раз чуть позже.');
+  status.textContent='Соединение установлено';badge.classList.add('online');message.textContent='Открываем кабинет…';location.assign(target+'/vhod?next=%2Fkabinet%2Fkatalogi');
+ }catch(error){status.textContent='Нет соединения';badge.classList.remove('online');message.textContent=error.message;button.disabled=false;}
+});
+</script></body></html>
