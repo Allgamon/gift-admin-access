@@ -1,2 +1,3 @@
-# gift-admin-access
-Gift Company CMS access portal; no application data
+# Gift Company · CMS access
+
+Technical entry page for a local development CMS. No passwords or application data are stored here.
