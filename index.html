@@ -4,16 +4,20 @@
 <script>
 const button=document.getElementById('open'),message=document.getElementById('message'),status=document.getElementById('status'),badge=document.getElementById('badge');
 const manifest='https://raw.githubusercontent.com/Allgamon/gift-admin-access/status/connection.json';
-async function connection(){
- const r=await fetch(manifest+'?_='+Date.now(),{cache:'no-store',signal:AbortSignal.timeout(8000)});if(!r.ok)throw Error('Не удалось получить состояние кабинета. Попробуйте ещё раз.');const s=await r.json();
- if(s.version!==1||s.status!=='online'||!/^https:\/\/[a-z0-9-]+\.(lhr\.life|localhost\.run)$/.test(s.origin)||!Number.isFinite(Date.parse(s.updatedAt))||Math.abs(Date.now()-Date.parse(s.updatedAt))>300000)throw Error('Компьютер с CMS сейчас недоступен или восстанавливает соединение. Попробуйте немного позже.');
+const usable=s=>s.version===1&&s.status==='online'&&typeof s.origin==='string'&&/^https:\/\/[a-z0-9-]+\.(lhr\.life|localhost\.run)$/.test(s.origin)&&Number.isFinite(Date.parse(s.updatedAt))&&Math.abs(Date.now()-Date.parse(s.updatedAt))<=300000;
+async function connection(latest=false){
+ if(!latest)try{const r=await fetch(manifest+'?_='+Date.now(),{cache:'no-store',signal:AbortSignal.timeout(4000)});const s=await r.json();if(r.ok&&usable(s))return s;}catch{}
+ // Raw CDN может держать предыдущий домен пять минут. API — только запасной запрос по нажатию.
+ const r=await fetch('https://api.github.com/repos/Allgamon/gift-admin-access/contents/connection.json?ref=status&_='+Date.now(),{cache:'no-store',signal:AbortSignal.timeout(5000)});
+ if(!r.ok)throw Error('Не удалось получить состояние кабинета. Попробуйте ещё раз.');const file=await r.json(),s=JSON.parse(atob(file.content.replace(/\s/g,'')));
+ if(!usable(s))throw Error('Компьютер с CMS сейчас недоступен или восстанавливает соединение. Попробуйте немного позже.');
  return s;
 }
 button.addEventListener('click',async()=>{
  button.disabled=true;message.textContent='Проверяем подключение…';
  try{
   let target;for(let attempt=0;attempt<3;attempt++){
-   const s=await connection();try{const r=await fetch(s.origin+'/__cms_connection',{credentials:'omit',cache:'no-store',signal:AbortSignal.timeout(5000)});if(r.ok&&(await r.json()).ready===true){target=s.origin;break;}}catch{}
+   const s=await connection(attempt>0);try{const r=await fetch(s.origin+'/__cms_connection',{credentials:'omit',cache:'no-store',signal:AbortSignal.timeout(5000)});if(r.ok&&(await r.json()).ready===true){target=s.origin;break;}}catch{}
    if(attempt<2){message.textContent='Восстанавливаем подключение…';await new Promise(r=>setTimeout(r,2000));}
   }
   if(!target)throw Error('Соединение с CMS пока недоступно из этой сети. Нажмите кнопку ещё раз чуть позже.');
